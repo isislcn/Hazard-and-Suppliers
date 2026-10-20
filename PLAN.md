@@ -5,11 +5,11 @@
 
 ## Summary
 
-Build a zero-budget, publicly accessible static prototype focused on floods. First deploy a real, data-free informational page to the production URL (Milestone 0). Then, only if the Sayari field-level license gate is passed and the source records support a join, add one source-attributed sample to an accessible table. The flood map is deferred beyond M1 to avoid promising a map implementation and reliable geometry join inside the small timebox.
+Build a zero-budget, publicly accessible static prototype focused on floods. Milestone 0 is deployed as a real, data-free informational page to GitHub Pages. Then, only if the Sayari field-level license gate is passed and the source records support a join, add one source-attributed sample to an accessible table. The flood map is deferred beyond M1 to avoid promising a map implementation and reliable geometry join inside the small timebox.
 
 The available time is **2 hours/week for 2 weeks = 4 hours total**. The deliberately limited M0/M1 implementation slice is estimated at **2.5 hours plus a 50% contingency buffer (1.25 hours) = 3.75 hours**. This estimate assumes the user supplies an immediately usable hosting destination, one already-prepared Sayari sample with field-level publication clearance, and one NOAA flood record suitable for evaluation. It does not include discovering, negotiating, or independently interpreting license terms; acquiring/cleaning datasets; the five-business ranking; all tiers; complete facility coverage; GDACS integration; historical data; or the map. If those prerequisites are absent, stop at the data-free M0 page and record M1 as blocked; do not exceed the timebox or publish uncleared data.
 
-The production deployment assumes an existing GitHub account/repository and permission to publish a GitHub Pages site. The project folder currently has no application scaffold or existing production URL. Confirm the destination and permissions before implementation; if they are unavailable, M0 cannot be guaranteed within the timebox and must be reported as blocked, not marked done.
+The production deployment uses GitHub Pages from `main` and `/docs`. M0 has been published at the URL listed in [README.md](./README.md).
 
 ## Technical Context
 
@@ -17,16 +17,22 @@ The production deployment assumes an existing GitHub account/repository and perm
 **Primary Dependencies:** No runtime dependencies for M0/M1's accessible source-linked table. Leaflet is deferred with the map.  
 **Storage:** Static, curated JSON files published with the site; no database  
 **Testing:** Manual checks of source links, company/facility identity chain, flood match status, keyboard-only table navigation, visible focus, contrast, empty/error state, and public URL  
-**Target Platform:** Static public website, proposed GitHub Pages (no-cost, subject to an existing account/repository and publishing permission)  
+**Target Platform:** GitHub Pages static site, deployed from `main` `/docs` at the URL in [README.md](./README.md)  
 **Performance Goals:** Not specified by the approved specification  
 **Constraints:** 4 hours total, 0 budget, beginner experience; flood-only hazard scope; public read-only access; no secrets in browser code; no unsupported location guesses or invented hazard buffers; data coverage must be stated. The user states that public Sayari access is permitted, but publication is gated on confirming the specific fields and derived display against the license.
+
+## Environments
+
+| Environment | URL | Deployment | Status |
+|---|---|---|---|
+| Production (GitHub Pages) | [https://isislcn.github.io/Hazard-and-Suppliers/](https://isislcn.github.io/Hazard-and-Suppliers/) | `main` branch, `/docs` folder | Verified HTTP 200 on 2026-10-19; currently the data-free M0 page |
 
 ### Technical decisions
 
 | Decision | Choice and reason | Alternatives rejected |
 |---|---|---|
 | Application shape | Static HTML/CSS/JavaScript with a semantic HTML table and local source-attributed JSON. It is beginner-friendly, has no server cost, and deploys as a static site. | A backend, database, or full-stack framework adds setup, maintenance, and possibly hosting cost without being required for a small read-only prototype. |
-| Public deployment | GitHub Pages, only after confirming an existing account/repository and publishing permissions. | Paid hosting and a new cloud service are rejected under the zero-budget constraint. Do not assume a production URL exists. |
+| Public deployment | GitHub Pages from `main` `/docs`, already enabled and serving the M0 page. | Paid hosting and a new cloud service are rejected under the zero-budget constraint. |
 | Source-data handling | M0 contains no Sayari data. Curator working files/drafts stay outside the deployed artifact. Only approved records that passed field-level license clearance may be copied into the public JSON. Use official NOAA flood records; GDACS flood records are deferred. | Live browser calls to Sayari or public APIs are rejected because they risk exposing credentials, depend on external service availability, and exceed the timebox. A database is unnecessary. |
 | Entity and facility linking | Retain Sayari entity identifiers, company-to-supplier relationships, tier/depth, facility record, and supplied coordinates. Only associate risk indicators with facilities through the recorded Sayari path. | Matching on names alone, substituting headquarters for facility coordinates, or treating indirect suppliers as direct is rejected because it can create false matches. |
 | Spatial matching | Use only provider-supplied affected-area geometry for an exposure match. A point-only event may be displayed as context but not labeled as facility exposure. | Invented distance radii or geocoding guesses are rejected because they are unsupported by the specification. |
@@ -60,7 +66,7 @@ No project constitution file was found in the project folder. Against the approv
 #### Step 1.1: Create and publish the static shell
 - **Requirements:** FR-017, FR-018, FR-020
 - **Design inputs:** [SPECIFICATION.md](./SPECIFICATION.md), public-read-only requirement
-- **Description:** First confirm that an existing GitHub repository and Pages publishing permission are available. Create `index.html` and `styles.css`, with a semantic heading, flood-only scope, no-data message, and accessible layout. Publish only these data-free files to GitHub Pages and record the production URL in `README.md`. If access is unavailable, stop and report M0 as blocked; do not spend past the allocated estimate.
+- **Description:** Create `docs/index.html` and the empty `docs/.nojekyll`; GitHub Pages now deploys from `main` `/docs`. The deployed, data-free page has been checked at the production URL. If the live deployment becomes unavailable, report M0 as blocked until restored.
 - **Estimate:** 0.75 hours
 - **Decision:** Deploy the empty/informational page before building the data view, as required by Milestone 0.
 
@@ -86,7 +92,7 @@ No project constitution file was found in the project folder. Against the approv
 #### Step 2.3: Display one sample or safe unavailable state in an accessible table
 - **Requirements:** FR-013, FR-015, FR-016, FR-017, FR-018, FR-019, FR-020
 - **Design inputs:** [SPECIFICATION.md](./SPECIFICATION.md), map/table/evidence screen definitions
-- **Description:** Render a single approved record in a semantic table with source links, relationship depth, flood record/category/time, match status, ethical-risk signal (if licensed and available), and limitations. Proposed paths: `data/published-sample.json`, `app.js`, and updates to `index.html` / `styles.css`. Keep working drafts outside the repository. If Sayari data are uncleared, display only the withheld/unavailable state and do not claim an overlap.
+- **Description:** Render a single approved record in a semantic table with source links, relationship depth, flood record/category/time, match status, ethical-risk signal (if licensed and available), and limitations. Proposed paths: `docs/data/published-sample.json`, `app.js`, and updates to `docs/index.html` / `styles.css`. Keep working drafts outside the repository. If Sayari data are uncleared, display only the withheld/unavailable state and do not claim an overlap.
 - **Estimate:** 0.50 hours
 - **Schedule:** Week 2
 
@@ -146,12 +152,14 @@ Hazard and Suppliers/
 ├── CONCEPT-IDEA.md
 ├── SPECIFICATION.md
 ├── PLAN.md
-├── README.md                 # add live URL, scope, and source/data limitations
-├── index.html                # public read-only page
-├── styles.css                # minimal accessible styling
-├── app.js                    # render static table/map sample
-└── data/
-    └── published-sample.json # only approved, license-cleared public records
+├── README.md                 # live URL, scope, and source/data limitations
+└── docs/
+    ├── index.html            # public read-only page
+    ├── .nojekyll
+    ├── app.js                # render static table/sample in M1
+    ├── styles.css            # minimal accessible styling
+    └── data/
+        └── published-sample.json # only approved, license-cleared public records
 ```
 
 No application framework, server, database, API key, or paid service is planned for the first slice. M1's semantic table needs no map dependency. Curator drafts and uncleared Sayari data must remain outside the repository and deployed artifact. If adding a later Leaflet map with OpenStreetMap tiles, verify current license, attribution, and usage conditions first.
@@ -185,13 +193,13 @@ No constitution violations are proposed. The timebox means the first public demo
 | FR-002 | Preserve source, period, amount, currency, and business basis | P3.1 | Revenue records and ranking details |
 | FR-003 | Convert to USD by annual-report rate or annual-average rate | P3.1 | Revenue records with conversion basis/source |
 | FR-004 | Mark unsupported ranking evidence unresolved | P3.1 | Company ranking status and disclosure |
-| FR-005 | Preserve supplier links and tier/depth | 2.1, P3.2 | `data/published-sample.json`, supplier relationship fields |
-| FR-006 | Include only sourced manufacturing facilities | 2.1, P3.2 | Facility records in `data/published-sample.json` |
+| FR-005 | Preserve supplier links and tier/depth | 2.1, P3.2 | `docs/data/published-sample.json`, supplier relationship fields |
+| FR-006 | Include only sourced manufacturing facilities | 2.1, P3.2 | Facility records in `docs/data/published-sample.json` |
 | FR-007 | Distinguish supported from missing/ambiguous facility location | 2.1, 2.3, P3.2 | Facility location and match status |
 | FR-008 | Use NOAA flood records and optionally flood-classified GDACS; exclude non-floods | 2.2, P3.3 | Flood observations with dates, source and coverage state |
 | FR-009 | Use provider flood category; no invented threshold | 2.2, P3.3 | Provider flood category/status displayed verbatim |
 | FR-010 | Display Sayari signals as source-attributed, not determinations | 2.1, 2.3 | Signal wording, subject and source references |
-| FR-011 | Retain originating records and field-level Sayari publication clearance | 2.1, 2.2, 2.3, P3.6 | License-clearance register and provider/source references |
+| FR-011 | Retain originating records and field-level Sayari publication clearance | 2.1, 2.2, 2.3, P3.6 | Private license-clearance record and provider/source references |
 | FR-012 | Mark unusable records/joins unresolved | 2.2, 2.3, P3.5 | Join status and limitations |
 | FR-013 | Do not show missing data as no risk | 2.3, 2.4, P3.5 | Explicit unknown/unavailable states |
 | FR-014 | Provide public map for supported facility-flood overlaps | P3.4 | Deferred map display and linked result detail |
@@ -199,5 +207,5 @@ No constitution violations are proposed. The timebox means the first public demo
 | FR-016 | Provide source, dates, match basis, and limitations | 2.3, P3.4 | Evidence/result detail |
 | FR-017 | Public read-only view; drafts isolated; only cleared Sayari content published | 1.1, 2.1, 2.3, P3.6 | Data-free shell, published-only JSON, license-clearance record |
 | FR-018 | Explicit empty/error states; no failed partial data as complete | 1.1, 2.4, P3.4 | Empty/error messaging and manual verification |
-| FR-019 | Join via Sayari entity path and flood geometry without invented radius | 2.1, 2.2, 2.3 | `data/published-sample.json` chain and explicit match basis |
+| FR-019 | Join via Sayari entity path and flood geometry without invented radius | 2.1, 2.2, 2.3 | Published sample chain and explicit match basis |
 | FR-020 | Provide keyboard-accessible equivalent table/detail for map results | 1.1, 2.3, 2.4, P3.4 | Semantic table, meaningful headers, visible focus, contrast and keyboard tests |
