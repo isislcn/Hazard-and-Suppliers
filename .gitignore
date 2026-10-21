@@ -1,0 +1,5 @@
+# Curator working files: Sayari-derived drafts, raw provider pulls, and the
+# uncleared local prototype. Keep out of the repository and public site
+# (SPECIFICATION FR-011, FR-017).
+drafts/
+.env

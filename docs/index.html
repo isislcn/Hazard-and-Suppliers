@@ -1,14 +1,545 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Apparel and Textile Supplier Flood Exposure Map</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hidden Supplier Accumulation — Apparel Portfolio Prototype</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #ffffff; --panel: #f6f9fc; --ink: #1b2430; --muted: #556170; --line: #dfe5ec;
+    --accent: #1f5f8b; --accent-soft: #e8f1f8; --frame: #9cc3df;
+    --focus-ring: #b45309; --focus-soft: #fdf3e4;
+    --warn-bg: #fff6dc; --warn-line: #e9c46a; --warn-ink: #5c4400;
+    --seq1: #efe6f7; --seq2: #d6c1ec; --seq3: #b48fd9; --seq4: #8a5bbf; --seq5: #5b2a86;
+    --sig-fl: #a3321f; --sig-sanc: #5b2a86; --sig-opq: #7a5a00; --sig-other: #556170;
+    --focus: #0b63ce;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 0 20px 64px; }
+  a { color: var(--accent); }
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+  .draft { background: var(--warn-bg); color: var(--warn-ink); padding: 9px 20px; font-size: 13.5px; border-bottom: 2px solid var(--warn-line); }
+  header { padding: 26px 0 0; }
+  h1 { font-size: 30px; line-height: 1.2; margin: 0 0 10px; letter-spacing: -0.015em; max-width: 30ch; }
+  h2 { font-size: 21px; margin: 34px 0 8px; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { max-width: 78ch; }
+  .lede { font-size: 17px; margin: 0 0 8px; max-width: 70ch; }
+  .note { color: var(--muted); font-size: 14px; max-width: 80ch; }
+  .define { font-size: 13.5px; color: var(--muted); margin: 0; }
+  .define b { color: var(--ink); }
+
+  [role="tablist"] { display: flex; gap: 4px; margin: 22px 0 0; border-bottom: 2px solid var(--frame); flex-wrap: wrap; }
+  [role="tab"] { font: inherit; font-weight: 600; color: var(--muted); background: transparent; border: 2px solid transparent;
+    border-bottom: none; border-radius: 8px 8px 0 0; padding: 9px 16px; margin-bottom: -2px; cursor: pointer; }
+  [role="tab"][aria-selected="true"] { color: var(--accent); background: var(--bg); border-color: var(--frame); border-bottom: 2px solid var(--bg); }
+  [role="tab"]:hover { color: var(--ink); }
+  .echo { margin: 18px 0 0; padding: 10px 14px; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: 0 8px 8px 0; font-size: 14.5px; max-width: 90ch; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin: 18px 0 0; }
+  .kpi { background: var(--panel); border: 1.5px solid var(--frame); border-top: 4px solid var(--accent); border-radius: 10px; padding: 12px 16px; }
+  .kpi b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  .kpi span { color: var(--muted); font-size: 13px; }
+  .sowhat { margin: 18px 0 0; padding: 14px 18px; border: 2px solid var(--focus-ring); background: var(--focus-soft); border-radius: 10px; }
+  .sowhat strong { display: block; font-size: 16.5px; margin-bottom: 4px; }
+  .sowhat p { margin: 0; font-size: 14.5px; }
+
+  .mapgrid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; margin-top: 14px; }
+  @media (max-width: 900px) { .mapgrid { grid-template-columns: 1fr; } }
+  #map { height: 500px; border-radius: 10px; border: 1.5px solid var(--frame); background: #dcebf5; }
+  .side { border: 1.5px solid var(--frame); border-radius: 10px; padding: 14px 16px; background: var(--bg); align-self: start; }
+  .side h3 { font-size: 18px; margin: 0 0 2px; }
+  .side .sub { color: var(--muted); font-size: 13px; margin: 0 0 10px; }
+  .side dl { margin: 0; }
+  .side dt { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 10px; }
+  .side dd { margin: 2px 0 0; font-size: 14px; }
+  .side ul { margin: 2px 0 0; padding-left: 18px; font-size: 14px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin: 10px 0 0; align-items: center; }
+  .sw { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  .ramp { display: inline-flex; vertical-align: -2px; margin: 0 4px; }
+  .ramp i { width: 16px; height: 12px; display: inline-block; }
+  .toggles { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; margin-top: 8px; }
+
+  .box { background: var(--bg); border: 1.5px solid var(--frame); border-radius: 10px; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  thead th { background: var(--accent-soft); font-weight: 600; color: var(--accent); font-size: 12.5px; text-transform: uppercase; letter-spacing: .03em; white-space: nowrap; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.out td { color: var(--muted); }
+  .pill { display: inline-block; font-size: 12px; font-weight: 600; border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  .pill.in { background: var(--accent); color: #fff; }
+  .pill.focus { background: var(--focus-soft); color: #7a3a00; border: 1.5px solid var(--focus-ring); }
+  .pill.lvl { border: 1.5px solid currentColor; }
+  button.link { font: inherit; color: var(--accent); background: none; border: none; padding: 0; text-decoration: underline; cursor: pointer; }
+  button.btn { font: inherit; font-weight: 600; color: #fff; background: var(--accent); border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+  button.btn.ghost, a.btn.ghost { color: var(--accent); background: var(--bg); border: 1.5px solid var(--accent); }
+  a.btn { display: inline-block; font-weight: 600; color: #fff; background: var(--accent); border: 1.5px solid var(--accent); border-radius: 8px; padding: 8px 14px; text-decoration: none; }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 14px 0; }
+  .card { background: var(--panel); border: 1.5px solid var(--frame); border-radius: 10px; padding: 14px 16px; }
+  .card p { margin: 4px 0 0; font-size: 14px; }
+  .card.next { display: flex; flex-direction: column; gap: 8px; }
+  .card.next button { align-self: flex-start; margin-top: auto; }
+  .steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 14px 0; padding: 0; list-style: none; counter-reset: step; }
+  .steps li { counter-increment: step; background: var(--panel); border: 1.5px solid var(--frame); border-left: 5px solid var(--accent); border-radius: 10px; padding: 14px 16px; }
+  .steps li h3::before { content: "Step " counter(step) " · "; color: var(--accent); }
+  .steps p { margin: 4px 0 0; font-size: 14px; }
+  .callout { background: var(--warn-bg); border: 1.5px solid var(--warn-line); border-radius: 10px; padding: 12px 16px; font-size: 14px; margin: 16px 0; }
+  .callout ul { margin: 6px 0 0; padding-left: 20px; }
+
+  .matrix td.cell { text-align: center; font-variant-numeric: tabular-nums; min-width: 44px; }
+  .matrix th.focuscol { box-shadow: inset 0 -3px 0 var(--focus-ring); }
+
+  .group { border: 1.5px solid var(--frame); border-left: 6px solid var(--gc); border-radius: 10px; margin: 16px 0; overflow: hidden; }
+  .group > header { padding: 14px 18px 10px; display: grid; grid-template-columns: 1fr auto; gap: 4px 16px; align-items: start; }
+  .group > header h3 { font-size: 18px; color: var(--gc); margin: 0; }
+  .group .count { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+  .group .count span { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+  .group .act { grid-column: 1 / -1; margin: 4px 0 0; font-size: 14.5px; }
+  .group .act b { color: var(--gc); }
+  .group table { border-top: 1px solid var(--line); }
+  .bar { display: inline-block; height: 8px; border-radius: 0 4px 4px 0; background: var(--gc); vertical-align: middle; margin-right: 6px; }
+
+  .meth section { margin-bottom: 8px; }
+  .meth h2 { border-bottom: 1.5px solid var(--frame); padding-bottom: 4px; }
+  .meth ul { padding-left: 20px; }
+  .meth li { margin-bottom: 6px; max-width: 80ch; }
+  .cite { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--panel); border: 1.5px solid var(--frame); border-radius: 8px; padding: 12px 14px; max-width: 90ch; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .leaflet-tooltip { font: 13px/1.4 system-ui, sans-serif; }
+</style>
 </head>
 <body>
-  <main>
-    <h1>Apparel and Textile Supplier Flood Exposure Map</h1>
-    <p>Create a map that brings together supplier facility and trade-link information from Sayari with public flood information.</p>
-  </main>
+<div class="draft" role="note"><strong>Prototype.</strong>
+  Illustrative portfolio only: no real policies or losses are used. Sayari data is shown in aggregated form only.</div>
+<div class="wrap">
+<header>
+  <h1>See the supplier risk behind the policies you underwrite</h1>
+  <p class="lede">Catastrophe models stop at the insured address. Supply chains don't.
+    This tool maps where floods strike, who owns the suppliers behind each policyholder, and how many policyholders share them,
+    exposing hidden accumulation before a loss and ownership or sanctions red flags before a payment.</p></header>
+
+<div role="tablist" aria-label="Site sections">
+  <button role="tab" id="t-map" aria-controls="p-map" aria-selected="true">Flood context map</button>
+  <button role="tab" id="t-portfolio" aria-controls="p-portfolio" aria-selected="false" tabindex="-1">Portfolio and top 6</button>
+  <button role="tab" id="t-flags" aria-controls="p-flags" aria-selected="false" tabindex="-1">Sayari flags</button>
+  <button role="tab" id="t-method" aria-controls="p-method" aria-selected="false" tabindex="-1">Methodology and limits</button>
+</div>
+
+<!-- ============ TAB 1: MAP ============ -->
+<section role="tabpanel" id="p-map" aria-labelledby="t-map">
+  <div class="kpis" id="kpis"></div>
+  <div class="sowhat" id="sowhat"></div>
+
+  <h2>Where shared supply meets flood activity</h2>
+  <p class="note">Bubbles show sampled suppliers per country: size is the number of suppliers, color is the share carrying a Sayari flag.
+    Countries outlined in amber are <em>focus countries</em>, where three or more policyholders depend on suppliers and at least one flood occurred in the window.
+    Select a country, on the map or in the list below, to see who depends on it.</p>
+  <div class="mapgrid">
+    <div>
+      <div id="map" role="region" aria-label="Map of sampled suppliers by country and GDACS flood events. A keyboard-accessible list of the same countries follows."></div>
+      <div class="legend" aria-hidden="true">
+        <span>Share of suppliers flagged <span class="ramp"><i style="background:var(--seq1)"></i><i style="background:var(--seq2)"></i><i style="background:var(--seq3)"></i><i style="background:var(--seq4)"></i><i style="background:var(--seq5)"></i></span> 0% → 100%</span>
+        <span><span class="sw" style="background:transparent;border:2.5px solid var(--focus-ring);border-radius:2px"></span>Focus country</span>
+        <span><span class="sw" style="background:#2e9b4f;width:9px;height:9px"></span>Flood, Green alert</span>
+        <span><span class="sw" style="background:#f39c12;width:9px;height:9px"></span>Orange</span>
+        <span><span class="sw" style="background:#d63a2f;width:9px;height:9px"></span>Red</span>
+      </div>
+      <div class="toggles"><label><input type="checkbox" id="show-floods" checked> Show flood events (GDACS)</label></div>
+    </div>
+    <aside class="side" id="side" aria-live="polite"></aside>
+  </div>
+  <p class="note"><strong>Why country level?</strong> Sayari gave us supplier addresses but no verified map coordinates.
+    Placing a dot at a guessed street location would look precise when it is not, so each bubble sits at the country's centre and only says
+    how many sampled suppliers are there, not where they are.</p>
+  <p class="note">Supplier ownership and risk flags come from Sayari and are shown here only in aggregated form.
+    <button class="link" data-goto="t-flags">See what the flags mean →</button></p>
+
+  <h2>Countries at a glance</h2>
+  <div class="box scroll"><table id="ctable"></table></div>
+
+  <h2>Next steps</h2>
+  <div class="cards">
+    <div class="card next"><h3>Meet the portfolio</h3><p>See the six policyholders, how they were chosen, and which countries they share.</p><button class="btn" data-goto="t-portfolio">Portfolio and top 6</button></div>
+    <div class="card next"><h3>Read the flags</h3><p>What each Sayari flag type means and what to do with it before and after an event.</p><button class="btn" data-goto="t-flags">Sayari flags</button></div>
+    <div class="card next"><h3>Check the method</h3><p>Sources, dates, calculations, and what this data cannot tell you.</p><button class="btn ghost" data-goto="t-method">Methodology and limits</button></div>
+  </div>
+</section>
+
+<!-- ============ TAB 2: PORTFOLIO ============ -->
+<section role="tabpanel" id="p-portfolio" aria-labelledby="t-portfolio" hidden>
+  <p class="echo">One flood can touch many policyholders at once when they rely on suppliers in the same places. This tab shows where that shared dependence sits.</p>
+  <h2>An illustrative portfolio</h2>
+  <p>Imagine this is the apparel-sector policy portfolio of an insurance company, and these are its six largest policyholders.
+    <strong>This is a hypothetical example.</strong> The companies are real and their revenue comes from public reports, but no actual insurance policies, premiums, or claims are involved.</p>
+
+  <h2>Why shared dependence matters</h2>
+  <p class="note"><em>Accumulation</em> is insurance shorthand for many policies being hit by the same event. Supplier networks can create accumulation that never shows up on the insured address.</p>
+  <div class="cards">
+    <div class="card"><h3>Before an event</h3><p>If a flood or cyclone builds over a country that several policyholders depend on, the insurer can see in advance where losses may cluster,
+      warn those policyholders, and ask about backup suppliers. That matters most for <em>contingent business interruption</em> cover: payment for income lost when a supplier, not the policyholder, is shut down.</p></div>
+    <div class="card"><h3>After an event</h3><p>Knowing which policyholders depend on the affected country helps decide which claims to handle first,
+      and the Sayari flags show which suppliers, payees, or vendors deserve a check before any money is paid.</p></div>
+  </div>
+
+  <h2>Who depends on which country</h2>
+  <p class="note">Number of sampled suppliers per policyholder and country. Darker cells mean more suppliers. Countries underlined in amber are focus countries.
+    Counts come from a sample of up to eight suppliers per policyholder, so they show shared exposure, not how much each company buys.</p>
+  <div class="box scroll"><table class="matrix" id="matrix"></table></div>
+  <p class="note" id="matrix-note"></p>
+
+  <h2>How the six were chosen</h2>
+  <ol class="steps">
+    <li><h3>Start with a defined group</h3><p>Ten publicly listed apparel companies that publish audited annual reports or U.S. 10-K filings. The list was fixed on <span class="frozen"></span>, before any revenue was compared.</p></li>
+    <li><h3>Use a comparable figure</h3><p>Where a company reports apparel separately from footwear or equipment (Nike, adidas), the apparel figure is used. Where a company sells mainly apparel, total revenue is used. A company that does not separate apparel is set aside.</p></li>
+    <li><h3>Convert to U.S. dollars</h3><p>Figures are converted at the Federal Reserve's 2025 average exchange rates, because the annual reports reviewed do not state a single rate.</p></li>
+    <li><h3>Keep the six largest</h3><p>The six highest-ranked companies become the illustrative portfolio. This is a ranking within the group of ten, not a global list.</p></li>
+  </ol>
+  <div class="box scroll"><table id="cohort"></table></div>
+  <div class="callout"><strong>Points to keep in mind</strong><ul id="cohort-caveats"></ul></div>
+</section>
+
+<!-- ============ TAB 3: FLAGS ============ -->
+<section role="tabpanel" id="p-flags" aria-labelledby="t-flags" hidden>
+  <p class="echo">Ownership and sanctions concerns are cheapest to act on before money moves. These flags tell an insurer where to look first.</p>
+  <h2 id="flag-takeaway"></h2>
+  <div class="callout"><strong>Flags are prompts to investigate, not findings of wrongdoing.</strong>
+    Each flag means Sayari's records show a connection worth asking about, such as a trade link, a shared owner, or a listed product.
+    It does not show that a supplier uses forced labor or breaks sanctions. All flags were retrieved from Sayari on <span class="built"></span>; each flag type names its underlying source.</div>
+  <div id="groups"></div>
+  <p class="note">Counts are numbers of sampled suppliers (out of <span class="nsup"></span>). A supplier can carry several flag types, so rows do not add up.
+    Supplier-level records are kept in the working files for review and are not shown on this site.</p>
+</section>
+
+<!-- ============ TAB 4: METHOD ============ -->
+<section role="tabpanel" id="p-method" aria-labelledby="t-method" class="meth" hidden>
+  <p class="echo">This page is for anyone who wants to check, trust, or cite the work: where every number comes from, and what it cannot tell you.</p>
+
+  <section><h2>The six policyholders and why the portfolio is hypothetical</h2>
+    <ul>
+      <li>Ten publicly listed apparel companies were fixed as a group on <span class="frozen"></span>. Their latest annual revenue for apparel (or for the whole business, where it is mainly apparel) was converted to U.S. dollars at Federal Reserve G.5A 2025 averages and ranked. The top six form the portfolio. Full table on <button class="link" data-goto="t-portfolio">Portfolio and top 6</button>.</li>
+      <li>The portfolio is hypothetical. We do not know which insurers cover these companies or on what terms, and no policy, premium, or loss data is used anywhere on the site.</li>
+      <li>Each policyholder is anchored to one Sayari company record chosen for its registry identifiers: <span id="seeds"></span>.</li>
+    </ul></section>
+
+  <section><h2>Where the information comes from</h2>
+    <div class="box scroll"><table>
+      <thead><tr><th scope="col">Information</th><th scope="col">Source</th><th scope="col">Date</th></tr></thead>
+      <tbody id="srctable"></tbody>
+    </table></div></section>
+
+  <section><h2>How the map and key numbers were calculated</h2>
+    <ul>
+      <li><b>Suppliers.</b> For each policyholder, the first 25 companies Sayari's trade records show shipping to it were reviewed. Up to eight that look like producers were kept; freight forwarders, retail stores, group companies, and individuals were removed. Result: <span class="nsup"></span> suppliers (<span id="t2"></span> of them one step further up the chain).</li>
+      <li><b>Country.</b> Each supplier is assigned to the country named in its Sayari address, or to Sayari's country field when no address was given. Bubbles sit at the country's label point from Natural Earth, not at any supplier site.</li>
+      <li><b>Flagged share.</b> A supplier counts as flagged if its own Sayari record carries at least one forced-labor, sanctions, or ownership flag. Flags Sayari borrows from a "possibly the same" record are not counted.</li>
+      <li><b>Flood context.</b> GDACS flood events active between <span class="window"></span> were matched to suppliers by country only.</li>
+      <li><b>Focus countries.</b> Countries where at least three of the six policyholders have a sampled supplier and GDACS recorded at least one flood in the window.</li>
+      <li><b>Shared dependence.</b> A policyholder "shares" a country if at least one other policyholder also has a sampled supplier there.</li>
+    </ul></section>
+
+  <section><h2>What this data cannot tell you</h2>
+    <ul>
+      <li><b>Country-level is not site-level.</b> A supplier in a country with a flood was not necessarily flooded. No site has been matched to a flooded area, because supplier coordinates and GDACS flood outlines were both unavailable.</li>
+      <li><b>Flags are not findings.</b> They are leads from Sayari's analysis of public records and must be checked before any conclusion is drawn.</li>
+      <li><b>Coverage varies.</b> Sayari's trade data is richer for some countries than others, and this sample covers mostly first-tier suppliers. A country with few or no suppliers here may simply be under-recorded.</li>
+      <li><b>Sample, not spend.</b> Supplier counts reflect a small sample, not how much each policyholder buys, and no supplier in this sample is shared by two policyholders; the overlap shown is at country level.</li>
+      <li><b>Products are mixed.</b> Sayari's apparel-only filter did not work through our connection, so some suppliers (for example Nike's) make footwear.</li>
+      <li><b>Flood only.</b> Cyclone tracks are not yet included. GDACS alert levels are its own categories, not our risk scores. NOAA's U.S. flood service did not apply because no sampled supplier is in the United States.</li>
+      <li><b>No real insurance data.</b> No policies, premiums, exposures, or losses are used.</li>
+    </ul></section>
+
+  <section><h2>How Sayari data appears</h2>
+    <p>Sayari data appears on this site only in derived or aggregated form: counts by country, policyholder, and flag type. No supplier names, identifiers, or addresses are shown.
+      Supplier-level records are kept privately for review and are not part of this site.</p></section>
+
+  <section><h2>Sources</h2>
+    <h3 style="margin-top:14px">Data</h3>
+    <ul>
+      <li>Sayari. <i>Sayari Graph</i>: trade relationships, corporate records, and risk factors, accessed through the Sayari connector. Retrieved <span class="built"></span>. <a href="https://sayari.com" target="_blank" rel="noopener">sayari.com</a> · <a href="https://docs.sayari.com" target="_blank" rel="noopener">documentation</a></li>
+      <li>European Commission Joint Research Centre. <i>Global Disaster Alert and Coordination System (GDACS): flood events, last three months</i> (RSS). CC BY 4.0. Retrieved <span class="built"></span>. <a href="https://www.gdacs.org/xml/rss_fl_3m.xml" target="_blank" rel="noopener">gdacs.org</a></li>
+      <li>Board of Governors of the Federal Reserve System. <i>G.5A Foreign Exchange Rates (Annual)</i>, 2025 averages, released January 5, 2026. <a href="https://www.federalreserve.gov/releases/g5a/current/default.htm" target="_blank" rel="noopener">federalreserve.gov</a></li>
+      <li>Natural Earth. <i>Admin 0 – Countries, 1:110m</i>. Public domain. <a href="https://www.naturalearthdata.com" target="_blank" rel="noopener">naturalearthdata.com</a></li>
+      <li>NOAA National Water Prediction Service API (reviewed; not applicable to this sample). <a href="https://water.noaa.gov/about/api" target="_blank" rel="noopener">water.noaa.gov</a></li>
+    </ul>
+    <h3>Company revenue (latest annual reports and filings)</h3>
+    <ul id="rev-sources"></ul>
+    <h3>Lists and research behind the Sayari flags</h3>
+    <ul>
+      <li>U.S. Department of Homeland Security. <i>Strategy to Prevent the Importation of Goods Mined, Produced, or Manufactured with Forced Labor in the People's Republic of China</i> (UFLPA Entity List). <a href="https://www.dhs.gov/uflpa-entity-list" target="_blank" rel="noopener">dhs.gov</a></li>
+      <li>U.S. Department of Labor, Bureau of International Labor Affairs. <i>List of Goods Produced by Child Labor or Forced Labor</i>. <a href="https://www.dol.gov/agencies/ilab/reports/child-labor/list-of-goods" target="_blank" rel="noopener">dol.gov</a></li>
+      <li>U.S. Customs and Border Protection. <i>Withhold Release Orders and Findings</i>. <a href="https://www.cbp.gov/trade/forced-labor/withhold-release-orders-and-findings" target="_blank" rel="noopener">cbp.gov</a></li>
+      <li>Sheffield Hallam University, Helena Kennedy Centre for International Justice. Forced-labor supply-chain reports. <a href="https://www.shu.ac.uk/helena-kennedy-centre-international-justice/research-and-projects/all-projects" target="_blank" rel="noopener">shu.ac.uk</a></li>
+      <li>Australian Strategic Policy Institute. <i>Uyghurs for Sale</i> (2020). <a href="https://www.aspi.org.au/report/uyghurs-sale" target="_blank" rel="noopener">aspi.org.au</a></li>
+    </ul>
+    <p class="note">The flag lists are maintained by their publishers and applied by Sayari; the dates above are when Sayari was queried, not when each list was last updated.</p>
+  </section>
+
+  <section><h2>Build it for your own portfolio</h2>
+    <p>The <b>Policyholder Supplier-Risk Screening Playbook</b> explains how to rebuild this analysis for any list of policyholders,
+      step by step: resolving companies in Sayari, pulling and cleaning suppliers, mapping flags, adding hazard context, aggregating, and publishing safely.
+      It comes with a template for your policyholder list.</p>
+    <p style="display:flex;gap:10px;flex-wrap:wrap">
+      <a class="btn" href="supplier-risk-screening-playbook.md" download>Download the playbook (Markdown)</a>
+      <a class="btn ghost" href="policyholders_template.csv" download>Download the policyholder template (CSV)</a>
+    </p></section>
+
+  <section><h2>Suggested citation</h2>
+    <p class="cite" id="cite"></p></section>
+
+  <section><h2>How this could be extended</h2>
+    <ul>
+      <li>Pull supplier coordinates through a direct Sayari export and match sites to GDACS flood outlines, turning country context into site-level exposure.</li>
+      <li>Add cyclone tracks and wind fields (for example GDACS tropical-cyclone alerts) alongside floods.</li>
+      <li>Weight dependence by shipment volume or value from trade records instead of supplier counts.</li>
+      <li>Expand beyond eight suppliers per policyholder and into deeper tiers to test for genuinely shared suppliers.</li>
+      <li>Add historical events to compare past floods with later business-interruption patterns.</li>
+      <li>Test the views with underwriters and claims teams to see which decisions they actually change.</li>
+    </ul></section>
+</section>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="world.js"></script>
+<script src="site_data.js"></script>
+<script>
+(function () {
+  const S = window.SITE;
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const $ = id => document.getElementById(id);
+  const all = sel => [...document.querySelectorAll(sel)];
+  if (!S) { $("kpis").innerHTML = "<p>Data failed to load. Run drafts/build_prototype.py. Nothing is shown rather than a partial result.</p>"; return; }
+
+  const T = S.totals, C = S.cohort;
+  const pct = (a, b) => Math.round(100 * a / b);
+  const longDate = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const shortDate = iso => new Date(iso + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const list = a => a.length <= 1 ? a.join("") : a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+  const countries = S.countries;
+  const byIso = Object.fromEntries(countries.map(c => [c.iso3, c]));
+  const focus = countries.filter(c => c.focus);
+  const alertColor = { Green: "#2e9b4f", Orange: "#d97706", Red: "#d63a2f" };
+  const alertText = { Green: "#1e6b37", Orange: "#9a4a00", Red: "#a3221a" };
+
+  all(".frozen").forEach(e => e.textContent = longDate(C.frozen_on));
+  all(".built").forEach(e => e.textContent = longDate(S.built_on));
+  all(".nsup").forEach(e => e.textContent = T.suppliers);
+  all(".window").forEach(e => e.textContent = `${longDate(T.flood_window[0])} and ${longDate(T.flood_window[1])}`);
+
+  // ---- Tabs ----
+  const tabs = all('[role="tab"]');
+  let map;
+  function select(tab, focusTab) {
+    tabs.forEach(t => {
+      const on = t === tab;
+      t.setAttribute("aria-selected", on); t.tabIndex = on ? 0 : -1;
+      $(t.getAttribute("aria-controls")).hidden = !on;
+    });
+    if (focusTab) tab.focus();
+    if (tab.id === "t-map" && map) setTimeout(() => map.invalidateSize(), 0);
+    history.replaceState(null, "", tab.id === "t-map" ? location.pathname : "#" + tab.id.slice(2));
+    window.scrollTo({ top: 0 });
+  }
+  tabs.forEach((t, i) => {
+    t.addEventListener("click", () => select(t));
+    t.addEventListener("keydown", e => {
+      const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (d) select(tabs[(i + d + tabs.length) % tabs.length], true);
+    });
+  });
+  document.addEventListener("click", e => {
+    const b = e.target.closest("[data-goto]");
+    if (b) select($(b.dataset.goto), true);
+  });
+
+  // ---- Tab 1: KPIs and so-what ----
+  $("kpis").innerHTML = [
+    [T.suppliers, "suppliers mapped across " + T.policyholders + " policyholders"],
+    [T.countries, "supplier countries covered"],
+    [`${T.policyholders_sharing_a_country} of ${T.policyholders}`, "policyholders share a supplier country with another"],
+    [`${pct(T.flagged, T.suppliers)}%`, `of suppliers carry at least one Sayari flag (${T.flagged} of ${T.suppliers})`],
+  ].map(([n, t]) => `<div class="kpi"><b>${n}</b><span>${t}</span></div>`).join("");
+
+  const focusNames = focus.map(c => c.name);
+  const allGreen = focus.every(c => c.flood_highest === "Green");
+  $("sowhat").innerHTML = `<strong>${list(focusNames)} hold ${pct(T.focus_suppliers, T.suppliers)}% of the portfolio's sampled suppliers, and every one of them saw flooding in the last four months.</strong>
+    <p>Each of these countries supplies at least three of the six policyholders, so one bad flood season there would reach several policies at once.
+    ${allGreen ? `The floods there were all at GDACS's lowest (Green) alert level. The most severe alerts, in ${list(T.orange_red_countries)}, touch only ${T.orange_red_suppliers} sampled suppliers.` : ""}
+    The overlap is at country level; no supplier site has been confirmed as flooded.</p>`;
+
+  // ---- Tab 1: Map ----
+  const seq = ["--seq1", "--seq2", "--seq3", "--seq4", "--seq5"].map(v => getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+  const shade = share => seq[Math.min(4, Math.floor(share * 5))];
+  map = L.map("map", { scrollWheelZoom: false, minZoom: 1.5, maxZoom: 7, zoomSnap: 0.25 }).setView([18, 60], 2.5);
+  map.attributionControl.addAttribution("Country outlines: Natural Earth · Flood events: GDACS (EC-JRC, CC BY 4.0) · Supplier counts derived from Sayari");
+  const polyByIso = {};
+  L.geoJSON(window.WORLD, {
+    style: f => {
+      const c = byIso[f.properties.iso3];
+      if (!c) return { color: "#c9d1da", weight: .6, fillColor: "#f1f3f6", fillOpacity: 1 };
+      return c.focus ? { color: "#b45309", weight: 2.6, fillColor: "#fdf3e4", fillOpacity: 1 }
+                     : { color: "#7d9bb3", weight: 1, fillColor: "#eaf1f7", fillOpacity: 1 };
+    },
+    onEachFeature: (f, layer) => {
+      const c = byIso[f.properties.iso3];
+      if (!c) return;
+      polyByIso[c.iso3] = layer;
+      layer.on("click", () => show(c.iso3));
+      layer.bindTooltip(`${esc(c.name)}: ${plural(c.suppliers, "supplier")}${c.focus ? " · focus country" : ""}`, { sticky: true });
+    }
+  }).addTo(map);
+  const floodLayer = L.layerGroup(S.flood_events.map(e => L.circleMarker([e.lat, e.lon], {
+    radius: e.alert_level === "Green" ? 3.5 : 5.5, color: "#fff", weight: 1, fillColor: alertColor[e.alert_level], fillOpacity: .95
+  }).bindTooltip(`${esc(e.title)} · ${shortDate(e.from)}–${shortDate(e.to)}`))).addTo(map);
+  for (const c of countries) {
+    if (c.lat == null) continue;
+    L.circleMarker([c.lat, c.lon], {
+      radius: 7 + 5 * Math.sqrt(c.suppliers), color: c.focus ? "#b45309" : "#fff", weight: c.focus ? 3 : 2,
+      fillColor: shade(c.flagged / c.suppliers), fillOpacity: .92
+    }).addTo(map).on("click", () => show(c.iso3))
+      .bindTooltip(`<b>${esc(c.name)}</b><br>${plural(c.suppliers, "supplier")}, ${pct(c.flagged, c.suppliers)}% flagged`, { direction: "top" });
+  }
+  $("show-floods").addEventListener("change", e => e.target.checked ? floodLayer.addTo(map) : floodLayer.remove());
+  const fit = () => map.fitBounds(countries.filter(c => c.lat != null).map(c => [c.lat, c.lon]), { padding: [30, 30] });
+  fit();
+
+  const groupLabel = { forced_labor: "Forced-labor risk", sanctions: "Sanctions link", ownership: "Opaque ownership" };
+  function sideDefault() {
+    $("side").innerHTML = `<h3>Select a country</h3><p class="sub">Click a bubble or country, or use the list below the map.</p>
+      <dl><dt>Focus countries</dt><dd>${focus.map(c => `<button class="link" data-iso="${c.iso3}">${esc(c.name)}</button>`).join(", ")}</dd>
+      <dt>Why they matter</dt><dd>Before a flood: which policyholders to warn and where losses may cluster. After: which claims to prioritize and which payees to check.</dd></dl>`;
+  }
+  function show(iso) {
+    const c = byIso[iso];
+    const ph = Object.entries(c.policyholders).sort((a, b) => b[1] - a[1]);
+    const groups = Object.entries(c.groups);
+    const alerts = Object.entries(c.flood_alerts).filter(([, n]) => n).map(([l, n]) => `<span class="pill lvl" style="color:${alertText[l]}">${n} ${l}</span>`).join(" ");
+    $("side").innerHTML = `<h3>${esc(c.name)}</h3>
+      <p class="sub">${c.focus ? '<span class="pill focus">Focus country</span> ' : ""}${plural(c.suppliers, "sampled supplier")} · ${pct(c.suppliers, T.suppliers)}% of the portfolio sample</p>
+      <dl>
+        <dt>Policyholders that depend on it</dt><dd><ul>${ph.map(([p, n]) => `<li>${esc(p)}: ${plural(n, "supplier")}</li>`).join("")}</ul></dd>
+        <dt>Sayari flags here</dt><dd>${groups.length ? `<ul>${groups.map(([g, n]) => `<li>${groupLabel[g]}: ${n} of ${c.suppliers}</li>`).join("")}</ul>` : "No forced-labor, sanctions, or ownership flags on suppliers sampled here."}</dd>
+        <dt>Flood context (GDACS)</dt><dd>${c.flood_events ? `${plural(c.flood_events, "flood event")} in the window ${alerts}${c.flood_current ? `, ${c.flood_current} still ongoing` : ""}` : "No GDACS flood record in the window. This is not evidence of no risk."}</dd>
+        <dt>What to do with this</dt><dd>${ph.length >= 2 ? `Several policyholders rely on suppliers here, so an event would hit them together.` : `Only one policyholder relies on suppliers here in this sample.`}
+          ${groups.length ? ` <button class="link" data-goto="t-flags">Check what the flags mean</button>.` : ""}</dd>
+      </dl>
+      <p class="sub" style="margin-top:12px"><button class="link" id="side-reset">← All focus countries</button></p>`;
+    $("side-reset").addEventListener("click", () => { sideDefault(); fit(); });
+    polyByIso[iso]?.bringToFront();
+  }
+  $("side").addEventListener("click", e => { const b = e.target.closest("[data-iso]"); if (b) show(b.dataset.iso); });
+  sideDefault();
+
+  $("ctable").innerHTML = `<caption class="sr">Supplier countries with policyholders, flags, and flood context</caption>
+    <thead><tr><th scope="col">Country</th><th scope="col" class="num">Suppliers</th><th scope="col" class="num">Policyholders</th>
+    <th scope="col" class="num">Flagged</th><th scope="col">Flood events (GDACS)</th><th scope="col"><span class="sr">Open</span></th></tr></thead><tbody>` +
+    countries.map(c => `<tr><th scope="row">${esc(c.name)} ${c.focus ? '<span class="pill focus">Focus</span>' : ""}</th>
+      <td class="num">${c.suppliers}</td><td class="num">${Object.keys(c.policyholders).length} of 6</td>
+      <td class="num">${c.flagged} (${pct(c.flagged, c.suppliers)}%)</td>
+      <td>${c.flood_events ? `${c.flood_events}, highest <span style="color:${alertText[c.flood_highest]};font-weight:600">${c.flood_highest}</span>` : "None in window"}</td>
+      <td><button class="link" data-iso="${c.iso3}">View on map</button></td></tr>`).join("") + "</tbody>";
+  $("ctable").addEventListener("click", e => {
+    const b = e.target.closest("[data-iso]"); if (!b) return;
+    show(b.dataset.iso);
+    const c = byIso[b.dataset.iso]; if (c.lat != null) map.setView([c.lat, c.lon], 4);
+    $("map").scrollIntoView({ behavior: "smooth", block: "center" });
+    $("side").focus?.();
+  });
+
+  // ---- Tab 2: Matrix ----
+  const P = S.policyholders;
+  const maxCell = Math.max(...P.flatMap(p => Object.values(p.countries)));
+  $("matrix").innerHTML = `<caption class="sr">Sampled suppliers by policyholder and country</caption><thead><tr><th scope="col">Policyholder</th>` +
+    countries.map(c => `<th scope="col" class="num ${c.focus ? "focuscol" : ""}">${esc(c.name)}</th>`).join("") +
+    `<th scope="col" class="num">Total</th><th scope="col" class="num">Flagged</th></tr></thead><tbody>` +
+    P.map(p => `<tr><th scope="row">${p.rank}. ${esc(p.name)}</th>` + countries.map(c => {
+      const n = p.countries[c.iso3] || 0;
+      if (!n) return `<td class="cell" style="color:#b7bec7">·</td>`;
+      const i = Math.min(4, Math.ceil(5 * n / maxCell) - 1);
+      return `<td class="cell" style="background:${seq[i]};color:${i >= 3 ? "#fff" : "var(--ink)"};font-weight:600">${n}</td>`;
+    }).join("") + `<td class="num">${p.suppliers}</td><td class="num">${p.flagged}</td></tr>`).join("") +
+    `<tr><th scope="row">Policyholders relying on it</th>` + countries.map(c => `<td class="cell"><b>${Object.keys(c.policyholders).length}</b></td>`).join("") + `<td></td><td></td></tr></tbody>`;
+  const top = countries[0];
+  $("matrix-note").textContent = `${top.name} is the most shared country in the sample: ${Object.keys(top.policyholders).length} of the six policyholders rely on suppliers there. ` +
+    `Bangladesh is relied on by ${Object.keys(byIso.BGD?.policyholders || {}).length} of six. All six policyholders share at least one supplier country with another.`;
+
+  // ---- Tab 2: Cohort table ----
+  const fmt = (n, cur) => cur === "USD" ? `$${(n/1000).toFixed(2)}bn` : `${cur} ${(n/1000).toLocaleString("en-US", {maximumFractionDigits: 1})}bn`;
+  const cands = [...C.candidates].sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+  $("cohort").innerHTML = `<caption class="sr">Group of ten apparel companies ranked by converted revenue</caption>
+    <thead><tr><th scope="col">Rank</th><th scope="col">Company</th><th scope="col">Portfolio</th><th scope="col">Revenue used</th><th scope="col">Fiscal year</th>
+     <th scope="col" class="num">As reported</th><th scope="col" class="num">In USD</th><th scope="col">Source</th></tr></thead><tbody>` +
+    cands.map(c => {
+      const inP = c.rank && c.rank <= 6;
+      return `<tr class="${inP ? "" : "out"}"><td>${c.rank ?? "Set aside"}</td><td>${inP ? `<b>${esc(c.name)}</b>` : esc(c.name)}</td>
+      <td>${inP ? '<span class="pill in">Policyholder</span>' : "—"}</td>
+      <td>${esc(c.basis)}${c.status_reason ? `<br><span class="note">${esc(c.status_reason)}</span>` : ""}</td>
+      <td>${esc(c.period)}</td><td class="num">${fmt(c.amount_m, c.currency)}</td><td class="num">$${c.usd_bn.toFixed(2)}bn</td>
+      <td><a href="${esc(c.source)}" target="_blank" rel="noopener">Report</a></td></tr>`;
+    }).join("") + "</tbody>";
+  $("cohort-caveats").innerHTML = [
+    "H&amp;M (2nd) and Fast Retailing (3rd) are within about 2% of each other once converted, so their order depends on the exchange-rate method. Both are in the portfolio either way.",
+    "The 2025 calendar-year average rate is applied to fiscal years that do not follow the calendar (Inditex ends in January, H&amp;M in November, Fast Retailing in August).",
+    "Revenue bases differ: Nike and adidas report an apparel segment, while the others report total revenue for a mainly-apparel business.",
+    "VF Corporation is set aside because its revenue includes footwear brands (Vans, Timberland) and apparel is not reported separately.",
+  ].map(x => `<li>${x}</li>`).join("");
+
+  // ---- Tab 3: Flags ----
+  const G = S.group_totals;
+  $("flag-takeaway").textContent = `${G.forced_labor} of ${T.suppliers} sampled suppliers carry a forced-labor-related flag, ${plural(G.sanctions, "supplier")} sit one step from a sanctioned or export-controlled party, and none shows an ownership-opacity flag.`;
+  const GROUPS = [
+    { key: "forced_labor", title: "Forced-labor risk", color: "var(--sig-fl)",
+      act: "<b>Ask the policyholder about this supplier.</b> Before renewal, ask what due diligence covers suppliers in these countries. After an event, expect questions if goods are held at a border.",
+      what: "A trade, network, or product link to forced-labor lists or research." },
+    { key: "sanctions", title: "Sanctions link", color: "var(--sig-sanc)",
+      act: "<b>Check before paying a claim.</b> Screen the payee, vendor, or supplier and its owners against current sanctions lists before money moves.",
+      what: "One step away from a sanctioned or export-controlled company or person; not itself sanctioned." },
+    { key: "ownership", title: "Opaque ownership", color: "var(--sig-opq)",
+      act: "<b>Confirm who ultimately owns a payee.</b> Ask for ownership documents before paying a supplier or vendor with this flag.",
+      what: "Signs that the real owner may be hard to identify." },
+    { key: "other", title: "Other context", color: "var(--sig-other)",
+      act: "<b>Use as background.</b> Not one of the three core signals, but useful context for a conversation with the policyholder.",
+      what: "Child-labor goods list, state-ownership links, regulatory actions." },
+  ];
+  const cname = iso => byIso[iso]?.name || iso;
+  $("groups").innerHTML = GROUPS.map(g => {
+    const rows = S.flag_types.filter(f => f.group === g.key);
+    return `<section class="group" style="--gc:${g.color}" aria-labelledby="g-${g.key}">
+      <header><div><h3 id="g-${g.key}">${g.title}</h3><p class="note" style="margin:2px 0 0">${g.what}</p></div>
+        <div class="count">${G[g.key]}<span>of ${T.suppliers} suppliers</span></div>
+        <p class="act">${g.act}</p></header>
+      <div class="scroll"><table><thead><tr><th scope="col">Flag type</th><th scope="col" class="num">Suppliers</th><th scope="col">Policyholders affected</th>
+        <th scope="col">Countries</th><th scope="col">Source · date</th></tr></thead><tbody>` +
+      rows.map(f => `<tr><td>${esc(f.meaning)}</td>
+        <td class="num"><span class="bar" style="width:${Math.round(60 * f.suppliers / T.suppliers)}px"></span>${f.suppliers}</td>
+        <td>${f.suppliers ? Object.keys(f.policyholders).length + " of 6" : "—"}</td>
+        <td>${f.suppliers ? Object.entries(f.countries).sort((a, b) => b[1] - a[1]).map(([i, n]) => `${esc(cname(i))} ${n}`).join(", ") : "None in sample"}</td>
+        <td class="note">${esc(f.source)} · via Sayari, ${shortDate(S.built_on)} 2026</td></tr>`).join("") +
+      `</tbody></table></div></section>`;
+  }).join("");
+
+  // ---- Tab 4: Methodology ----
+  $("seeds").textContent = P.map(p => `${p.name} (${p.seed_label})`).join("; ");
+  $("t2").textContent = T.tier2;
+  $("srctable").innerHTML = [
+    ["Supplier links, supplier countries, ownership and risk flags", "Sayari Graph, through the Sayari connector (trade-relationship and risk-factor data)", `Retrieved ${longDate(S.built_on)}`],
+    ["Flood events and alert levels", `<a href="${esc(S.flood_source.url)}" target="_blank" rel="noopener">GDACS flood feed</a>, European Commission Joint Research Centre (CC BY 4.0)`, `Retrieved ${longDate(S.flood_source.retrieved_on)}; events active ${shortDate(T.flood_window[0])} – ${shortDate(T.flood_window[1])} 2026`],
+    ["Company revenue", "Latest annual reports and U.S. filings (linked in Portfolio and top 6)", "Fiscal years ending Aug 2025 – May 2026"],
+    ["Exchange rates", `<a href="${esc(C.fx_source.url)}" target="_blank" rel="noopener">Federal Reserve G.5A</a>, 2025 annual averages`, "Released January 5, 2026"],
+    ["Country outlines and label points", "Natural Earth 1:110m (public domain)", "Current release"],
+  ].map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+  $("rev-sources").innerHTML = cands.map(c => `<li>${esc(c.name)}. ${esc(c.basis)}, ${esc(c.period)}. <a href="${esc(c.source)}" target="_blank" rel="noopener">${esc(new URL(c.source).hostname.replace(/^www\./, ""))}</a></li>`).join("");
+  const fromHash = $("t-" + location.hash.slice(1));
+  if (fromHash) select(fromHash);
+  $("cite").textContent =`[Author name]. (2026). Hidden supplier accumulation in an illustrative apparel insurance portfolio [Prototype]. ` +
+    `NYU, Beyond Branding: AI and Ethical Sourcing. Data: Sayari Graph (retrieved ${longDate(S.built_on)}); GDACS flood feed, EC-JRC (retrieved ${longDate(S.flood_source.retrieved_on)}); Federal Reserve G.5A (2025).`;
+})();
+</script>
 </body>
 </html>

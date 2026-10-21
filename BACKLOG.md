@@ -120,7 +120,8 @@ global cohort coverage.
 
 - **Priority:** High
 - **Spec:** FR-006, FR-007, FR-011, FR-012, FR-019
-- **Issue:** Facilities require distinct source-backed location records; supplier headquarters are not proxies.
+- **Issue:** —
+- **Why:** Facilities require distinct source-backed location records; supplier headquarters are not proxies.
 - **Done when:** The batch records at most 10 Sayari-linked manufacturing facilities for one selected business with source and supported coordinates/status; missing or ambiguous coordinates are not guessed. Use separate tasks for additional batches.
 
 ### N-006 — Expand NOAA flood observations for supported locations
